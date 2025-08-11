@@ -2,8 +2,7 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from itertools import permutations
-import time
-import pandas as pd
+import math
 
 class Node:
     def __init__(self,value):
@@ -12,10 +11,10 @@ class Node:
         self.parents = []
 
 class Edge:
-    def __init__(self,diraction=None,weight=1):
-        self.dir = diraction
+    def __init__(self,direction=None,weight=1):
+        self.dir = direction
         self.weight = weight
-        self.pheromone = 0.1
+        self.pheromone = 1
         self.ants = []
 
 class PathNode:
@@ -29,8 +28,9 @@ class Ant:
         self.dist = 0
 
 class Graph:
-    def __init__(self):
+    def __init__(self,matrix):
         self.nodes = {}
+        self.matrix = matrix
 
     def add_or_get(self,name):
         if name in self.nodes.keys():
@@ -65,12 +65,12 @@ class Graph:
             r += 1
 
     def depth_traversal(self,passed=[]):
-        keys = list(self.nodes.keys())
-        stack = [self.nodes[keys[0]]]
+        values = list(self.nodes.values())
+        stack = [values[0]]
         self.depth_traversal_wrap(passed,stack)
-        for key in keys:
-            if self.nodes[key] not in passed:
-                stack.append(self.nodes[key])
+        for value in values:
+            if value not in passed:
+                stack.append(value)
                 self.depth_traversal_wrap(passed,stack)
 
     def depth_traversal_wrap(self,passed,stack):
@@ -84,12 +84,12 @@ class Graph:
         stack.pop()
     
     def breath_traversal(self,passed=[]):
-        keys = list(self.nodes.keys())
-        queue = [self.nodes[keys[0]]]
+        values = list(self.nodes.values())
+        queue = [values[0]]
         self.breath_traversal_wrap(passed,queue)
-        for key in keys:
-            if self.nodes[key] not in passed:
-                queue.append(self.nodes[key])
+        for value in values:
+            if value not in passed:
+                queue.append(value)
                 self.breath_traversal_wrap(passed,queue)
 
     def breath_traversal_wrap(self,passed,queue):
@@ -171,7 +171,7 @@ class Graph:
             path = path.parent
 
         return path_value               
-    
+
     def get_path_shortest(self,end,queue,passed):
         path_node = queue[0]
         queue.remove(path_node)
@@ -221,6 +221,17 @@ class Graph:
             matrix[i][0] = _[i]
         self.add_edge(matrix,names)
 
+    def calculate_distance(self,route):
+        dist = 0
+        for i in range(len(route)-1):
+            dist += self.matrix[route[i]][route[i+1]]
+        return dist
+
+###
+
+###Algorithms start
+
+##NN start
     def find_minimum_edge(self,node,passed,path):
         edges = []
         for index, edge in enumerate(node.edges):
@@ -234,8 +245,7 @@ class Graph:
         return node.edges[index].dir
 
     def nearest_neighbour(self):
-        #start_node = self.nodes[random.choice(list(self.nodes.keys()))]
-        start_node = self.nodes[1]
+        start_node = random.choice(list(self.nodes.values()))
         passed = []
         path = [start_node.value]
         current_node = start_node
@@ -247,10 +257,28 @@ class Graph:
             if edge.dir == start_node:
                 path.append(start_node.value)
                 break
-        return [self.calculate_distance(path),path]
+        return self.calculate_distance(path),path
+###NN end
     
-    def ant_colony(self,k=100,s=10,batch=10):
-        #city = self.nodes[random.choice(list(self.nodes.keys()))]
+###ACO start a - 20, b=100
+    def choose_the_edge_ACO(self,node,ant,a=2,b=10):
+        edges = []
+        for edge in node.edges:
+            if edge.dir not in ant.passed:
+                edges.append(edge)
+        t_n = [(edge.pheromone**a) *((1/(edge.weight))**b) for edge in edges]
+        total = sum(t_n)
+        probabilites = np.array([t_n[i]/total for i in range(len(t_n))])
+        #print(edges,t_n,probabilites)
+        return np.random.choice(edges,p=probabilites)
+    
+    def pheromone_update(self,visited_edges, p=0.4,Q=1000):
+        for edge in visited_edges:
+            delta_tau = sum(Q/ant.dist for ant in edge.ants)
+            edge.pheromone = (1-p)*edge.pheromone + delta_tau
+            edge.ants.clear()
+
+    def ant_colony(self,k=200,s=10,batch=10):
         city = random.choice(list(self.nodes.values()))
         ants = [Ant(city) for _ in range(k)]
         best_solution = [float('inf'),[]]
@@ -280,10 +308,8 @@ class Graph:
                             break
                     if ant.dist < best_solution[0]:
                         Y = 0
-                        best_solution[0] = ant.dist
-                        best_solution[1] = [city.value for city in ant.passed.copy()]
-                        continue
-                    if (best_solution[0] - ant.dist) < s:
+                        best_solution = ant.dist,[city.value for city in ant.passed.copy()]
+                    elif (best_solution[0] - ant.dist) < s:
                         Y += 1
                 self.pheromone_update(visited_edges)
                 for ant in ants:
@@ -291,42 +317,9 @@ class Graph:
                     ant.dist = 0
                 i += 1
         return best_solution
-
-    def choose_the_edge_ACO(self,node,ant,a=5,b=0.8):
-        edges = []
-        for edge in node.edges:
-            if edge.dir not in ant.passed:
-                edges.append(edge)
-        t_n = [(edge.pheromone**a) *((1/(edge.weight+1))**b) for edge in edges]
-        total = sum(t_n)
-        probabilites = np.array([t_n[i]/total for i in range(len(t_n))])
-        return np.random.choice(edges,p=probabilites)
+###ACO end
     
-    def pheromone_update(self,visited_edges,p=0.2,Q=1000):
-        #for node in self.nodes.values():
-        #    for edge in node.edges:
-        #        edge.pheromone *= (1 - p)
-        #for edge in visited_edges:
-        #    delta_tau = 0
-        #    for ant in edge.ants:
-        #        delta_tau += Q/ant.dist
-        #    edge.pheromone = (1-p)*edge.pheromone + delta_tau
-        #    edge.ants.clear()
-        for node in self.nodes.values():
-            for edge in node.edges:
-                delta_tau = sum(Q/ant.dist for ant in edge.ants if ant.dist>0)
-                edge.pheromone = (1-p)*edge.pheromone + delta_tau
-                edge.ants.clear()
-
-    def calculate_distance(self,route):
-        dist = 0
-        for i in range(len(route)-1):
-            for edge in self.nodes[route[i]].edges:
-                if edge.dir.value == route[(i+1)]:
-                    dist += edge.weight
-                    break
-        return dist
-    
+###brute force start
     def brute_force(self):
         names = list(self.nodes.keys())
         start_city = self.nodes[random.choice(names)].value
@@ -334,12 +327,13 @@ class Graph:
         routes = []
         for route in permutations(names):
             routes.append([start_city] + list(route) + [start_city])
-
         routes_weights = []
         for route in routes:
             routes_weights.append(self.calculate_distance(route))
         return min(routes_weights)
+###brute force end
 
+###random swapping start
     def swap_nodes(self,route):
         local_route = route.copy()
         del(local_route[0])
@@ -355,74 +349,175 @@ class Graph:
 
         return route
 
-    def random_swaping(self,route_llst,batch=1000):
-        print([route_llst])
-        route_dist = route_llst[0]
-        route = route_llst[1]
+    def random_swaping(self,route_llst=None,batch=1000,k=0.1):
+        if not route_llst:
+            route_dist, route = self.nearest_neighbour()
+        else:
+            route_dist, route = route_llst
+            
         i = 0
-        Y=0
+        Y = 0
         while i < 10**6:
             
-            if Y < batch:
+            if Y >= batch:
                 break
-
+            
             new_route = self.swap_nodes(route.copy())
             new_route_dist = self.calculate_distance(new_route)
 
+            
             if new_route_dist < route_dist:
                 route = new_route
                 route_dist = new_route_dist
                 Y = 0
-            Y += 1
+            elif (new_route_dist - route_dist) < k:
+                Y += 1
+
             i += 1
 
-        return [route_dist,route]
+        return route_dist,route
+###random swapping end
 
-    def k_opt(self,n,route):
-        pass
-        for i in range(len(route)):
-            city = route[i]
-            city_2 = 0
-        #check is route better?
-        #if yes, T = T'
+###2-opt start
+    def two_opt(self,path=None):
+        distt = []
+        if not path:
+            res = self.nearest_neighbour()
+            route = res[1]
+        else:
+            route = path[1]
+        iteration = 0
+        i = 1
+        improved = True
+        while i<len(route)-2:
 
-    def clear_pheromones(self):
-        for node in self.nodes.values():
-            for edge in node.edges:
-                edge.pheromone = 0.1
+            if iteration >= 10**6:
+                break
+
+            if improved:
+                i=1
+                improved=False
+                
+            A = route[i]
+            B = route[i+1]
+            j=i+2
+            while j<len(route)-2:
+                C = route[j]
+                D = route[j+1]
+                org_dist = self.calculate_distance([A,B]) + self.calculate_distance([C,D])
+                new_dist = self.calculate_distance([A,C]) + self.calculate_distance([B,D])
+                if new_dist < org_dist:
+                    route = route[:i]+[A,C]+route[i+2:j][::-1]+[B,D]+route[j+2:]
+                    improved = True
+                    distt.append(self.calculate_distance(route))
+                    break
+                j +=1
+
+            i += 1
+            iteration += 1
+        return self.calculate_distance(route),route
+###2-opt end
+
+###3-opt start
+    def three_opt_swaps(self,route,i,j,k):
+        segm_a = route[1:i+1]
+        segm_b = route[i+1:j+1]
+        segm_c = route[j+1:k+1]
+        segm_d = route[k+1:]
+
+        segm_a_rev = segm_a[::-1]
+        segm_b_rev = segm_b[::-1]
+        segm_c_rev = segm_c[::-1]
+        options = [
+            [route[0]]+segm_a_rev+segm_b+segm_c+segm_d, #first case(reverse segment 1)
+            [route[0]]+segm_a+segm_b_rev+segm_c+segm_d, #second case(reserve segment 2)
+            [route[0]]+segm_a+segm_b+segm_c_rev+segm_d, #third case(reverse segment 3)
+            [route[0]]+segm_b+segm_c+segm_a+segm_d, #fourth case B-C-A
+            [route[0]]+segm_c+segm_b+segm_a+segm_d, #C-B-A
+            [route[0]]+segm_a+segm_c_rev+segm_b_rev+segm_d, #sixth case A-C'-B'
+            [route[0]]+segm_a+segm_b_rev+segm_c_rev+segm_d, #seventh case A-B'-C'
+        ]
+        
+        return options
+    
+    def three_opt(self,path=None,max_iter=10**6):
+        if not path:
+            res = self.nearest_neighbour()
+            route = res[1]
+            dist = res[0]
+        else:
+            dist = path[0]
+            route = path[1]
+        i=0
+        _=0
+        j=i+2
+        improved = True
+        while i<j-1:
+            if _>=max_iter:
+                break
+            if improved:
+                i = 0
+                j = 2
+                k = 4
+                improved = False
+            else:
+                if k == len(route)-2:
+                    if j == len(route) - 4:
+                        i +=1
+                    else:
+                        j += 1
+                else:
+                    k += 1
+            options = self.three_opt_swaps(route,i,j,k)
+            for option in options:
+                new_distance = self.calculate_distance(option)
+                if new_distance<dist:
+                    dist = new_distance
+                    route = option
+                    improved = True
+            _+=1
+        return dist, route
+###3-opt end
+
+###Simulated annealing starts
+    def simulated_annealing(self,path=None,t_max=10000,t_min=1,a=0.995,i_max=500):##t_max was set to have acceptance rate > 0.9
+        if not path:
+            _, current_route = self.nearest_neighbour()
+        else:
+            current_route = path[1]
+
+        t = t_max
+        best_distance = self.calculate_distance(current_route)
+        best_route = current_route.copy()
+        while t>t_min:
+            
+            for _ in range(i_max):
+                
+                try:
+                    i = random.randint(0,len(current_route)-5)
+                    j = random.randint(i+2,len(current_route)-3)
+                except:
+                    return "Graph is too small"
+                
+                org_dist = self.calculate_distance([current_route[i], current_route[i+1]]) + self.calculate_distance([current_route[j], current_route[j+1]])
+                new_dist = self.calculate_distance([current_route[i], current_route[j]]) + self.calculate_distance([current_route[i+1], current_route[j+1]])
+                
+                delta = new_dist - org_dist
+
+                if delta < 0 or random.random() <= math.exp(-delta/t):
+                    current_route = current_route[:i+1] + current_route[i+1:j+1][::-1] + current_route[j+1:]
+                    current_distance = self.calculate_distance(current_route)
+
+                    if current_distance < best_distance:
+                        best_route = current_route.copy()
+                        best_distance = current_distance
+            t *= a
+
+        return best_distance, best_route
+        
 
 def create_matrix(n):
     matrix = np.random.randint(400, 1000, size=(n, n))
+    matrix = (matrix + matrix.T) / 2
     np.fill_diagonal(matrix, 0)
     return matrix
-
-graph = Graph()
-n = 5
-matrix = create_matrix(n)
-names = np.arange(0,n)
-graph.add_edge(matrix,names)
-#graph.depth_traversal()
-#graph.breath_traversal()
-#print(graph.find_path(1,5))
-#print(graph.find_path_all(1,5))
-#print(graph.find_path_shortest(1,5))
-#graph.edge_contrection(3,4)
-#graph.edge_breaking(2,3)
-#graph.breath_traversal()
-#print(graph.random_swaping(graph.nearest_neighbour()))
-#print(graph.ant_colony())
-#print(graph.brute_force())
-print(graph.k_opt(2,graph.nearest_neighbour))
-#time_llst = []
-#res = []
-#for i in range(30):
-#    start_time = time.time()
-#    res.append(graph.ant_colony()[0])
-#    end_time = time.time()
-#    time_llst.append(end_time-start_time)
-#    graph.clear_pheromones()
-#
-#print((sum(time_llst)/30))
-#
-#df = pd.DataFrame(res,columns=["Distance a = 0.2, b=1"])
-#df.to_excel('first.xlsx',index = False)

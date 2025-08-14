@@ -2,7 +2,9 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from itertools import permutations
+import time
 import math
+from scipy import stats
 
 class Node:
     def __init__(self,value):
@@ -11,9 +13,11 @@ class Node:
         self.parents = []
 
 class Edge:
-    def __init__(self,direction=None,weight=1):
+    def __init__(self,direction=None,parent=None,weight=1):
         self.dir = direction
+        self.parent = parent
         self.weight = weight
+        self.visibility = 1/weight
         self.pheromone = 1
         self.ants = []
 
@@ -23,13 +27,16 @@ class PathNode:
         self.parent = parent
 
 class Ant:
-    def __init__(self,start_city):
-        self.passed = [start_city]
+    def __init__(self):
+        self.passed = []
         self.dist = 0
+        self.distances = []
+        self.routes = []
 
 class Graph:
     def __init__(self,matrix):
         self.nodes = {}
+        self.edges = {}
         self.matrix = matrix
 
     def add_or_get(self,name):
@@ -45,23 +52,17 @@ class Graph:
         for row in matrix:
             for i in range(len((row))):
                 if row[i] != 0:
-                    if names[r] in self.nodes.keys() and names_vertical[i][0] in self.nodes.keys():
-                        start_node = self.nodes[names[r]]
-                        end_node = self.nodes[names_vertical[i][0]]
-                        exist = False
-                        for edge in start_node.edges:
-                            if edge.dir == end_node:
-                                exist = True
-                                edge.weight = row[i]
-                                break
-                        if not exist:
-                            start_node.edges.append(Edge(end_node,row[i]))
-                            end_node.parents.append(start_node)
-                    else:
-                        start_node = self.add_or_get(names[r])
-                        end_node = self.add_or_get(names_vertical[i][0])
-                        start_node.edges.append(Edge(end_node,row[i]))
-                        end_node.parents.append(start_node)
+                    start_node = self.add_or_get(names[r])
+                    end_node = self.add_or_get(names_vertical[i][0])
+                    try:
+                        _ = self.edges[frozenset([start_node.value,end_node.value])]
+                    except:
+                        edge = Edge(end_node,start_node,row[i])
+                        self.edges[frozenset([start_node.value,end_node.value])] = edge
+                        start_node.edges.append(edge)
+                        end_node.edges.append(edge)
+                        end_node.parents.append(start_node)  
+                        start_node.parents.append(end_node)                  
             r += 1
 
     def depth_traversal(self,passed=[]):
@@ -148,10 +149,17 @@ class Graph:
             if edge.dir == end_node:
                 start_node.edges.remove(edge)
                 break
+            elif edge.parent == end_node:
+                start_node.edges.remove(edge)
+                break
         for edge in end_node.edges:
             if edge.dir == start_node:
                 end_node.edges.remove(edge)
                 break
+            elif edge.parent == start_node:
+                end_node.edges.remove(edge)
+                break  
+        del self.edges[frozenset([start_node.value,end_node.value])]
            
     def delete_node(self,value):
         node = self.nodes[value]
@@ -183,141 +191,41 @@ class Graph:
                 queue.append(PathNode(edge.dir,path_node))
                 passed.append(edge.dir)
         return self.get_path_shortest(end,queue,passed)
-
-    def edge_contrection(self,start,end):
-        self.delete_edge(start,end)
-        parent_to_add = list(set(self.nodes[end].parents)-set(self.nodes[start].parents))
-        node_parent_weights = [0]
-        parent_node_weights = [0]
-        names = np.array([self.nodes[start].value])
-
-        for parent in parent_to_add:
-            for edge in parent.edges:
-                if edge.dir == end:
-                    parent_node_weights.append(edge.weight)
-            for edge in end.edges:
-                if edge.dir == parent:
-                    node_parent_weights.append(edge.weight)
-            np.append(names,parent.value)
-        
-        self.delete_node(end)
-        
-        matrix = np.zeros((len(names), len(names)),dtype=int)
-        matrix[0] = node_parent_weights
-
-        for i in range(len(parent_node_weights)):
-            matrix[i][0] = parent_node_weights[i]
-
-        self.add_edge(matrix,names)
-
-    def edge_breaking(self,start,end):
-        self.delete_edge(start,end)
-        names = np.array([max(self.nodes.keys())+1,start,end])
-        matrix = np.zeros((len(names),len(names)),dtype=int)
-        _ = [1 for i in range(len(names))]
-        _[0] = 0
-        matrix[0] = _
-        for i in range(len(_)):
-            matrix[i][0] = _[i]
-        self.add_edge(matrix,names)
-
+    
     def calculate_distance(self,route):
         dist = 0
         for i in range(len(route)-1):
             dist += self.matrix[route[i]][route[i+1]]
         return dist
 
-###
-
 ###Algorithms start
 
 ##NN start
-    def find_minimum_edge(self,node,passed,path):
+    def find_minimum_edge(self,path):
         edges = []
-        for index, edge in enumerate(node.edges):
-            if edge.dir not in passed:
-                edges.append([index,edge.weight])
-        if len(edges)==0:
+        current_town = path[-1]
+        towns = list(set(self.nodes.keys())-set(path))
+        if not towns:
             return None
-        min_edge = min(edges, key=lambda e: e[1])
-        index = min_edge[0]
-        path.append(node.edges[index].dir.value)
-        return node.edges[index].dir
+        else:
+            for town in towns:
+                edges.append(self.edges[frozenset([town,current_town])].weight)
+        min_edge = min(edges)
+        return towns[edges.index(min_edge)]
 
     def nearest_neighbour(self):
         start_node = random.choice(list(self.nodes.values()))
-        passed = []
         path = [start_node.value]
-        current_node = start_node
+        current_town = start_node.value
         
-        while len(passed) < len(self.nodes):
-            passed.append(current_node)
-            current_node = self.find_minimum_edge(current_node,passed,path)
-        for edge in self.nodes[path[-1]].edges:
-            if edge.dir == start_node:
-                path.append(start_node.value)
-                break
+        while len(path) < len(self.nodes):
+            current_town = self.find_minimum_edge(path)
+            path.append(current_town)
+        
+        path.append(start_node.value)
+
         return self.calculate_distance(path),path
 ###NN end
-    
-###ACO start a - 20, b=100
-    def choose_the_edge_ACO(self,node,ant,a=2,b=10):
-        edges = []
-        for edge in node.edges:
-            if edge.dir not in ant.passed:
-                edges.append(edge)
-        t_n = [(edge.pheromone**a) *((1/(edge.weight))**b) for edge in edges]
-        total = sum(t_n)
-        probabilites = np.array([t_n[i]/total for i in range(len(t_n))])
-        #print(edges,t_n,probabilites)
-        return np.random.choice(edges,p=probabilites)
-    
-    def pheromone_update(self,visited_edges, p=0.4,Q=1000):
-        for edge in visited_edges:
-            delta_tau = sum(Q/ant.dist for ant in edge.ants)
-            edge.pheromone = (1-p)*edge.pheromone + delta_tau
-            edge.ants.clear()
-
-    def ant_colony(self,k=200,s=10,batch=10):
-        city = random.choice(list(self.nodes.values()))
-        ants = [Ant(city) for _ in range(k)]
-        best_solution = [float('inf'),[]]
-        visited_edges = []
-        Y = 0
-        i = 0
-        while i < 10**6:
-            if Y > batch:
-                break
-            else:
-                while len(ants[0].passed) < len(self.nodes):
-                    for ant in ants:
-                        edge = self.choose_the_edge_ACO(ant.passed[-1],ant)
-                        ant.passed.append(edge.dir)
-                        ant.dist += edge.weight
-                        edge.ants.append(ant)
-                        if edge not in visited_edges:
-                            visited_edges.append(edge)
-                for ant in ants:
-                    end_city = ant.passed[-1]
-                    for edge in end_city.edges:
-                        if edge.dir == ant.passed[0]:
-                            ant.passed.append(ant.passed[0])
-                            ant.dist += edge.weight
-                            edge.ants.append(ant)
-                            visited_edges.append(edge)
-                            break
-                    if ant.dist < best_solution[0]:
-                        Y = 0
-                        best_solution = ant.dist,[city.value for city in ant.passed.copy()]
-                    elif (best_solution[0] - ant.dist) < s:
-                        Y += 1
-                self.pheromone_update(visited_edges)
-                for ant in ants:
-                    ant.passed=[random.choice(list(self.nodes.values()))]
-                    ant.dist = 0
-                i += 1
-        return best_solution
-###ACO end
     
 ###brute force start
     def brute_force(self):
@@ -338,9 +246,10 @@ class Graph:
         local_route = route.copy()
         del(local_route[0])
         del(local_route[-1])
-        first_city = random.choice(local_route)
-        del(local_route[local_route.index(first_city)])
-        second_city = random.choice(local_route)
+        first_city, second_city = 0,0
+        while first_city == second_city:
+            first_city = random.choice(local_route)
+            second_city = random.choice(local_route)
 
         first_city_index = route.index(first_city)
         second_city_index = route.index(second_city)
@@ -351,7 +260,10 @@ class Graph:
 
     def random_swaping(self,route_llst=None,batch=1000,k=0.1):
         if not route_llst:
-            route_dist, route = self.nearest_neighbour()
+            route = (list(range(0,len(self.nodes.keys()))))
+            random.shuffle(route)
+            route.append(route[0])
+            route_dist = self.calculate_distance(route)
         else:
             route_dist, route = route_llst
             
@@ -476,13 +388,15 @@ class Graph:
                     route = option
                     improved = True
             _+=1
-        return dist, route
+        return dist,route
 ###3-opt end
 
 ###Simulated annealing starts
-    def simulated_annealing(self,path=None,t_max=10000,t_min=1,a=0.995,i_max=500):##t_max was set to have acceptance rate > 0.9
+    def simulated_annealing(self,path=None,t_max=10000,t_min=0.1,a=0.995,i_max=500):##t_max was set to have acceptance rate > 0.9
         if not path:
-            _, current_route = self.nearest_neighbour()
+            current_route = (list(range(0,len(self.nodes.keys()))))
+            random.shuffle(current_route)
+            current_route.append(current_route[0])
         else:
             current_route = path[1]
 
@@ -497,7 +411,7 @@ class Graph:
                     i = random.randint(0,len(current_route)-5)
                     j = random.randint(i+2,len(current_route)-3)
                 except:
-                    return "Graph is too small"
+                    return "Graph is to small"
                 
                 org_dist = self.calculate_distance([current_route[i], current_route[i+1]]) + self.calculate_distance([current_route[j], current_route[j+1]])
                 new_dist = self.calculate_distance([current_route[i], current_route[j]]) + self.calculate_distance([current_route[i+1], current_route[j+1]])
@@ -511,13 +425,187 @@ class Graph:
                     if current_distance < best_distance:
                         best_route = current_route.copy()
                         best_distance = current_distance
+
             t *= a
 
         return best_distance, best_route
-        
+    
+    def choose_the_town(self,ant,i,a=2,b=5):
+        current_node = ant.passed[-1]
+        towns = list(set(self.nodes.keys())-set(ant.passed))
+        t_n = []
+        for town in towns:
+            edge = self.edges[frozenset([town,current_node])]
+            t_n.append((edge.pheromone**a) * (edge.visibility**b))
+        total = sum(t_n)
+        probabilities = [t_n[i]/total for i in range(len(t_n))]   
+        town = np.random.choice(towns, p=probabilities)
+        return town
+
+
+    def update_pheromones(self,p=0.3,Q=1000):
+        for edge in self.edges.values():
+            delta_trail = 0
+            if edge.ants:
+                for ant in edge.ants:
+                    delta_trail += Q/ant.dist
+            edge.pheromone = (1-p)*edge.pheromone + delta_trail
+            edge.ants = []
+
+    def ant_system(self,m=100,s=0.02,batch=10):
+        ants = [Ant() for _ in range(m)]
+        keys = list(self.nodes.keys())
+        best_route = []
+        best_dist = np.inf
+        Y = 0
+        i = 0
+        dists = []
+        best_dists = []
+        timee = []
+        while i < 400:
+            
+            if Y >= batch:
+                break
+                
+            for ant in ants:
+                ant.distances.append(ant.dist)
+                ant.routes.append(ant.passed)
+                ant.passed = []
+                ant.dist = 0
+                ant.passed.append(random.choice(keys))
+
+            while len(ants[0].passed) < len(keys):
+                for ant in ants:
+                    t1 = time.time()
+                    town = self.choose_the_town(ant,i)
+                    timee.append(time.time()-t1)
+                    edge = self.edges[frozenset([town,ant.passed[-1]])]
+                    ant.passed.append(town)
+                    ant.dist += edge.weight
+                    edge.ants.append(ant)
+            for ant in ants:
+                ant.dist += self.edges[frozenset([ant.passed[-1],ant.passed[0]])].weight
+                ant.passed.append(ant.passed[0])
+                if ant.dist < best_dist:
+                    best_route = ant.passed
+                    best_dist = ant.dist
+                    best_dists.append(best_dist)
+                    Y = 0
+                elif ((ant.dist - best_dist)/best_dist) < s:
+                    Y += 1
+                dists.append(ant.dist-best_dist)
+            self.update_pheromones()
+            i += 1
+
+        return (best_dist,best_route)
+
+
+
 
 def create_matrix(n):
-    matrix = np.random.randint(400, 1000, size=(n, n))
+    matrix = np.random.randint(400, 5000, size=(n, n))
     matrix = (matrix + matrix.T) / 2
     np.fill_diagonal(matrix, 0)
     return matrix
+
+def sample_size(sample,alpha=0.05):
+    u_alpha = stats.norm.ppf(1 - alpha)
+    mean = np.average(sample)
+    std = np.std(sample)
+    allow_eror = alpha * mean
+
+    h = ((u_alpha ** 2) * (std ** 2))/allow_eror ** 2
+    return h
+
+def confirm_normal_distribution(sample,N,alpha=0.05):
+    obs_frequency, ints, _ = plt.hist(sample)
+    intervals = list(zip(ints, ints[1:]))
+
+    mean = np.average(sample)
+    std = np.std(sample)
+
+    if std == 0:
+        return True
+
+    cdf = [stats.norm.cdf(intervals[i][1],loc=mean,scale=std)-stats.norm.cdf(intervals[i][0],loc=mean,scale=std) for i in range(len(intervals))]
+
+    exp_frequency = [N*cdf[i] for i in range(len(obs_frequency))]
+
+
+    chi2 = sum([((obs_frequency[i]-exp_frequency[i])**2)/exp_frequency[i] for i in range(len(obs_frequency))])
+
+    dof = len(intervals) - 2
+
+    critical_value = stats.chi2.ppf(1 - alpha, dof)
+
+    print(chi2,critical_value)
+
+    return chi2<critical_value
+
+def pilot_experiment(lof,distance_matrix,minimum,step):
+    file_name = input('Please enter the name of .txt file for distances: ')
+    file_name_time = input('Please enter the name of .txt file for times: ')
+    results_file = open(file_name,'w',buffering=1)
+    results_time_file = open(file_name_time,'w',buffering=1)
+    results = {}
+    results_time = {}
+    for func in lof:
+        results_file.write(f'{func}\n')
+        results_time_file.write(f'{func}\n')
+        print(f'{func}')
+        results[func] = []
+        results_time[func] = []
+        for n in range(minimum,len(distance_matrix)+1,step):
+            submatrix = distance_matrix[0:n,0:n]
+            names = np.arange(0,n)
+            sample = []
+            sample_times = []
+            N = 30
+            for _ in range(N):
+                graph_temp = Graph(submatrix)
+                graph_temp.add_edge(submatrix,names)
+                time_before = time.time()
+                res, _ = getattr(graph_temp,func)()
+                sample_times.append(time.time() - time_before)
+                sample.append(res)
+            print(confirm_normal_distribution(sample,N))
+            if sample_size(sample) <= N:
+                results[func].append(np.mean(sample))
+                results_time[func].append(np.mean(sample_times))
+                results_file.write(f'{np.mean(sample)}\n')
+                results_time_file.write(f'{np.mean(sample_times)}\n')
+            else:
+                while sample_size(sample) > N:
+                    N = sample_size(sample)
+                    sample_ns = []
+                    sample_times_ns = []
+                    print(f"For {func} sample is too small, it has to be {sample_size(sample)}")
+                    for _ in range(N):
+                        graph_temp = Graph(submatrix)
+                        graph_temp.add_edge(submatrix,names)
+                        time_before_ns = time.time()
+                        res, _ = getattr(graph_temp,func)()
+                        sample_times_ns.append(time.time() - time_before_ns)
+                        sample_ns.append(res)
+                results[func].append(np.mean(sample))
+                results_time[func].append(np.mean(sample))
+                results_file.write(f'{np.mean(sample)}\n')
+                results_time_file.write(f'{np.mean(sample_times)}\n')
+
+    results_file.close()
+    results_time_file.close()
+    
+    for func in lof:
+        plt.plot(list(range(minimum,len(distance_matrix)+1,step)),results[func],label=func)
+
+    plt.xlim(minimum,len(distance_matrix))
+    plt.legend()
+    plt.show()
+    
+    for func in lof:
+        plt.plot(list(range(minimum,len(distance_matrix)+1,step)),results_time[func],label=func)
+        
+    plt.xlim(minimum,len(distance_matrix))
+    plt.legend()
+
+    plt.show()

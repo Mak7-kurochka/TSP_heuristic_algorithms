@@ -258,7 +258,7 @@ class Graph:
 
         return route
 
-    def random_swaping(self,route_llst=None,batch=1000,k=0.1):
+    def random_swaping(self,route_llst=None,batch=1000,k=0.05):
         if not route_llst:
             route = (list(range(0,len(self.nodes.keys()))))
             random.shuffle(route)
@@ -282,7 +282,7 @@ class Graph:
                 route = new_route
                 route_dist = new_route_dist
                 Y = 0
-            elif (new_route_dist - route_dist) < k:
+            elif (new_route_dist - route_dist)/route_dist < k:
                 Y += 1
 
             i += 1
@@ -545,8 +545,8 @@ def confirm_normal_distribution(sample,N,alpha=0.05):
 def pilot_experiment(lof,distance_matrix,minimum,step):
     file_name = input('Please enter the name of .txt file for distances: ')
     file_name_time = input('Please enter the name of .txt file for times: ')
-    results_file = open(file_name,'w',buffering=1)
-    results_time_file = open(file_name_time,'w',buffering=1)
+    results_file = open(file_name,'a',buffering=1)
+    results_time_file = open(file_name_time,'a',buffering=1)
     results = {}
     results_time = {}
     for func in lof:

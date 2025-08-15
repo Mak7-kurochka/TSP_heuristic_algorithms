@@ -34,7 +34,7 @@ class Ant:
         self.routes = []
 
 class Graph:
-    def __init__(self,matrix):
+    def __init__(self,matrix=None):
         self.nodes = {}
         self.edges = {}
         self.matrix = matrix
@@ -47,6 +47,8 @@ class Graph:
             return self.nodes[name]
 
     def add_edge(self,matrix,names):
+        if not self.matrix:
+            self.matrix = matrix
         names_vertical = names.reshape(-1,1)
         r=0
         for row in matrix:

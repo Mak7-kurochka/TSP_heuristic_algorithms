@@ -87,8 +87,7 @@ class Graph:
     
     def breath_traversal(self,passed=[]):
         values = list(self.nodes.values())
-        queue = [values[0]]
-        self.breadth_traversal_wrap(passed,queue)
+        queue = []
         for value in values:
             if value not in passed:
                 queue.append(value)

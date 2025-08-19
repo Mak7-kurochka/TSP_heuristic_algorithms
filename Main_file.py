@@ -88,13 +88,13 @@ class Graph:
     def breath_traversal(self,passed=[]):
         values = list(self.nodes.values())
         queue = [values[0]]
-        self.breath_traversal_wrap(passed,queue)
+        self.breadth_traversal_wrap(passed,queue)
         for value in values:
             if value not in passed:
                 queue.append(value)
-                self.breath_traversal_wrap(passed,queue)
+                self.breadth_traversal_wrap(passed,queue)
 
-    def breath_traversal_wrap(self,passed,queue):
+    def breadth_traversal_wrap(self,passed,queue):
         if len(queue) == 0:
             return
         node = queue[0]
@@ -104,7 +104,7 @@ class Graph:
         for edge in node.edges:
             if edge.dir not in passed and edge.dir not in queue:
                 queue.append(edge.dir)
-        self.breath_traversal_wrap(passed,queue)
+        self.breadth_traversal_wrap(passed,queue)
 
     def find_path(self, start, end):
         start_node = self.nodes[start]

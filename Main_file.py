@@ -69,8 +69,7 @@ class Graph:
 
     def depth_traversal(self,passed=[]):
         values = list(self.nodes.values())
-        stack = [values[0]]
-        self.depth_traversal_wrap(passed,stack)
+        stack = []
         for value in values:
             if value not in passed:
                 stack.append(value)

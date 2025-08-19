@@ -85,7 +85,7 @@ class Graph:
                 self.depth_traversal_wrap(passed,stack)
         stack.pop()
     
-    def breath_traversal(self,passed=[]):
+    def breadth_traversal(self,passed=[]):
         values = list(self.nodes.values())
         queue = []
         for value in values:

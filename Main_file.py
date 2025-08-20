@@ -294,8 +294,9 @@ class Graph:
     def two_opt(self,path=None):
         distt = []
         if not path:
-            res = self.nearest_neighbour()
-            route = res[1]
+            route = (list(range(0,len(self.nodes.keys()))))
+            random.shuffle(route)
+            route.append(route[0])
         else:
             route = path[1]
         iteration = 0

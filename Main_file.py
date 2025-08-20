@@ -292,7 +292,6 @@ class Graph:
 
 ###2-opt start
     def two_opt(self,path=None):
-        distt = []
         if not path:
             route = (list(range(0,len(self.nodes.keys()))))
             random.shuffle(route)
@@ -305,6 +304,7 @@ class Graph:
         while i<len(route)-2:
 
             if iteration >= 10**6:
+                
                 break
 
             if improved:
@@ -322,10 +322,8 @@ class Graph:
                 if new_dist < org_dist:
                     route = route[:i]+[A,C]+route[i+2:j][::-1]+[B,D]+route[j+2:]
                     improved = True
-                    distt.append(self.calculate_distance(route))
                     break
                 j +=1
-
             i += 1
             iteration += 1
         return self.calculate_distance(route),route

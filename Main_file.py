@@ -461,7 +461,7 @@ class Graph:
         dists = []
         best_dists = []
         timee = []
-        while i < 400:
+        while i < 2500:
             
             if Y >= batch:
                 break

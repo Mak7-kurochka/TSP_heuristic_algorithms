@@ -299,7 +299,7 @@ class Graph:
         else:
             route = path[1]
         iteration = 0
-        i = 1
+        i = 0
         improved = True
         while i<len(route)-2:
 
@@ -308,7 +308,7 @@ class Graph:
                 break
 
             if improved:
-                i=1
+                i=0
                 improved=False
                 
             A = route[i]

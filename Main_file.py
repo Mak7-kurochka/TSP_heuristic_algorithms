@@ -30,7 +30,6 @@ class Ant:
     def __init__(self):
         self.passed = []
         self.dist = 0
-        self.distances = []
         self.routes = []
 
 class Graph:
@@ -458,16 +457,12 @@ class Graph:
         best_dist = np.inf
         Y = 0
         i = 0
-        dists = []
-        best_dists = []
-        timee = []
         while i < 2500:
             
             if Y >= batch:
                 break
                 
             for ant in ants:
-                ant.distances.append(ant.dist)
                 ant.routes.append(ant.passed)
                 ant.passed = []
                 ant.dist = 0
@@ -488,11 +483,9 @@ class Graph:
                 if ant.dist < best_dist:
                     best_route = ant.passed
                     best_dist = ant.dist
-                    best_dists.append(best_dist)
                     Y = 0
                 elif ((ant.dist - best_dist)/best_dist) < s:
                     Y += 1
-                dists.append(ant.dist-best_dist)
             self.update_pheromones()
             i += 1
 

@@ -470,9 +470,7 @@ class Graph:
                 ant.passed.append(random.choice(keys))
 
                 while len(ant.passed) < len(keys):
-                    t1 = time.time()
                     town = self.choose_the_town(ant,i)
-                    timee.append(time.time()-t1)
                     edge = self.edges[frozenset([town,ant.passed[-1]])]
                     ant.passed.append(town)
                     ant.dist += edge.weight

@@ -428,7 +428,7 @@ class Graph:
 
         return best_distance, best_route
     
-    def choose_the_town(self,ant,i,a=2,b=5):
+    def choose_the_town(self,ant,a=2,b=5):
         current_node = ant.passed[-1]
         towns = list(set(self.nodes.keys())-set(ant.passed))
         t_n = []
@@ -470,7 +470,7 @@ class Graph:
                 ant.passed.append(random.choice(keys))
 
                 while len(ant.passed) < len(keys):
-                    town = self.choose_the_town(ant,i)
+                    town = self.choose_the_town(ant)
                     edge = self.edges[frozenset([town,ant.passed[-1]])]
                     ant.passed.append(town)
                     ant.dist += edge.weight

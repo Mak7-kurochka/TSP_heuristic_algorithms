@@ -301,7 +301,7 @@ class Graph:
         iteration = 0
         i = 0
         improved = True
-        while i<len(route)-2:
+        while i<len(route)-1:
 
             if iteration >= 10**6:
                 
@@ -314,7 +314,7 @@ class Graph:
             A = route[i]
             B = route[i+1]
             j=i+2
-            while j<len(route)-2:
+            while j<len(route)-1:
                 C = route[j]
                 D = route[j+1]
                 org_dist = self.calculate_distance([A,B]) + self.calculate_distance([C,D])

@@ -463,13 +463,13 @@ class Graph:
                 break
                 
             for ant in ants:
+                
                 ant.routes.append(ant.passed)
                 ant.passed = []
                 ant.dist = 0
                 ant.passed.append(random.choice(keys))
 
-            while len(ants[0].passed) < len(keys):
-                for ant in ants:
+                while len(ant.passed) < len(keys):
                     t1 = time.time()
                     town = self.choose_the_town(ant,i)
                     timee.append(time.time()-t1)

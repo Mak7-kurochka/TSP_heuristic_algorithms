@@ -328,67 +328,6 @@ class Graph:
         return self.calculate_distance(route),route
 ###2-opt end
 
-###3-opt start
-    def three_opt_swaps(self,route,i,j,k):
-        segm_a = route[1:i+1]
-        segm_b = route[i+1:j+1]
-        segm_c = route[j+1:k+1]
-        segm_d = route[k+1:]
-
-        segm_a_rev = segm_a[::-1]
-        segm_b_rev = segm_b[::-1]
-        segm_c_rev = segm_c[::-1]
-        options = [
-            [route[0]]+segm_a_rev+segm_b+segm_c+segm_d, #first case(reverse segment 1)
-            [route[0]]+segm_a+segm_b_rev+segm_c+segm_d, #second case(reserve segment 2)
-            [route[0]]+segm_a+segm_b+segm_c_rev+segm_d, #third case(reverse segment 3)
-            [route[0]]+segm_b+segm_c+segm_a+segm_d, #fourth case B-C-A
-            [route[0]]+segm_c+segm_b+segm_a+segm_d, #C-B-A
-            [route[0]]+segm_a+segm_c_rev+segm_b_rev+segm_d, #sixth case A-C'-B'
-            [route[0]]+segm_a+segm_b_rev+segm_c_rev+segm_d, #seventh case A-B'-C'
-        ]
-        
-        return options
-    
-    def three_opt(self,path=None,max_iter=10**6):
-        if not path:
-            res = self.nearest_neighbour()
-            route = res[1]
-            dist = res[0]
-        else:
-            dist = path[0]
-            route = path[1]
-        i=0
-        _=0
-        j=i+2
-        improved = True
-        while i<j-1:
-            if _>=max_iter:
-                break
-            if improved:
-                i = 0
-                j = 2
-                k = 4
-                improved = False
-            else:
-                if k == len(route)-2:
-                    if j == len(route) - 4:
-                        i +=1
-                    else:
-                        j += 1
-                else:
-                    k += 1
-            options = self.three_opt_swaps(route,i,j,k)
-            for option in options:
-                new_distance = self.calculate_distance(option)
-                if new_distance<dist:
-                    dist = new_distance
-                    route = option
-                    improved = True
-            _+=1
-        return dist,route
-###3-opt end
-
 ###Simulated annealing starts
     def simulated_annealing(self,path=None,t_max=10000,t_min=0.1,a=0.995,i_max=500):##t_max was set to have acceptance rate > 0.9
         if not path:

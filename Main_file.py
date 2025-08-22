@@ -463,7 +463,7 @@ def confirm_normal_distribution(sample,N,alpha=0.05):
 
     chi2 = sum([((obs_frequency[i]-exp_frequency[i])**2)/exp_frequency[i] for i in range(len(obs_frequency))])
 
-    dof = len(intervals) - 2
+    dof = len(intervals) - 1 - 2
 
     critical_value = stats.chi2.ppf(1 - alpha, dof)
 

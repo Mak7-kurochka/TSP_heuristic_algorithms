@@ -346,7 +346,7 @@ class Graph:
                 
                 try:
                     i = random.randint(0,len(current_route)-5)
-                    j = random.randint(i+2,len(current_route)-3)
+                    j = random.randint(i+2,len(current_route)-2)
                 except:
                     return "Graph is to small"
                 

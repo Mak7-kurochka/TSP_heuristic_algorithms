@@ -30,10 +30,11 @@ class Ant:
     def __init__(self):
         self.passed = []
         self.dist = 0
+        self.distances = []
         self.routes = []
 
 class Graph:
-    def __init__(self,matrix=None):
+    def __init__(self,matrix):
         self.nodes = {}
         self.edges = {}
         self.matrix = matrix
@@ -46,8 +47,6 @@ class Graph:
             return self.nodes[name]
 
     def add_edge(self,matrix,names):
-        if not self.matrix:
-            self.matrix = matrix
         names_vertical = names.reshape(-1,1)
         r=0
         for row in matrix:
@@ -68,7 +67,8 @@ class Graph:
 
     def depth_traversal(self,passed=[]):
         values = list(self.nodes.values())
-        stack = []
+        stack = [values[0]]
+        self.depth_traversal_wrap(passed,stack)
         for value in values:
             if value not in passed:
                 stack.append(value)
@@ -84,15 +84,16 @@ class Graph:
                 self.depth_traversal_wrap(passed,stack)
         stack.pop()
     
-    def breadth_traversal(self,passed=[]):
+    def breath_traversal(self,passed=[]):
         values = list(self.nodes.values())
-        queue = []
+        queue = [values[0]]
+        self.breath_traversal_wrap(passed,queue)
         for value in values:
             if value not in passed:
                 queue.append(value)
-                self.breadth_traversal_wrap(passed,queue)
+                self.breath_traversal_wrap(passed,queue)
 
-    def breadth_traversal_wrap(self,passed,queue):
+    def breath_traversal_wrap(self,passed,queue):
         if len(queue) == 0:
             return
         node = queue[0]
@@ -102,7 +103,7 @@ class Graph:
         for edge in node.edges:
             if edge.dir not in passed and edge.dir not in queue:
                 queue.append(edge.dir)
-        self.breadth_traversal_wrap(passed,queue)
+        self.breath_traversal_wrap(passed,queue)
 
     def find_path(self, start, end):
         start_node = self.nodes[start]
@@ -159,6 +160,7 @@ class Graph:
                 end_node.edges.remove(edge)
                 break  
         del self.edges[frozenset([start_node.value,end_node.value])]
+        self.matrix[start][end] = 0
            
     def delete_node(self,value):
         node = self.nodes[value]
@@ -257,7 +259,7 @@ class Graph:
 
         return route
 
-    def random_swaping(self,route_llst=None,batch=1000,s=0.05):
+    def random_swaping(self,route_llst=None,batch=1000,k=0.05):
         if not route_llst:
             route = (list(range(0,len(self.nodes.keys()))))
             random.shuffle(route)
@@ -281,7 +283,7 @@ class Graph:
                 route = new_route
                 route_dist = new_route_dist
                 Y = 0
-            elif (new_route_dist - route_dist)/route_dist < s:
+            elif (new_route_dist - route_dist)/route_dist <= k:
                 Y += 1
 
             i += 1
@@ -291,6 +293,7 @@ class Graph:
 
 ###2-opt start
     def two_opt(self,path=None):
+        distt = []
         if not path:
             route = (list(range(0,len(self.nodes.keys()))))
             random.shuffle(route)
@@ -298,22 +301,21 @@ class Graph:
         else:
             route = path[1]
         iteration = 0
-        i = 0
+        i = 1
         improved = True
-        while i<len(route)-1:
+        while i<len(route)-2:
 
             if iteration >= 10**6:
-                
                 break
 
             if improved:
-                i=0
+                i=1
                 improved=False
                 
             A = route[i]
             B = route[i+1]
             j=i+2
-            while j<len(route)-1:
+            while j<len(route)-2:
                 C = route[j]
                 D = route[j+1]
                 org_dist = self.calculate_distance([A,B]) + self.calculate_distance([C,D])
@@ -321,12 +323,75 @@ class Graph:
                 if new_dist < org_dist:
                     route = route[:i]+[A,C]+route[i+2:j][::-1]+[B,D]+route[j+2:]
                     improved = True
+                    distt.append(self.calculate_distance(route))
                     break
                 j +=1
+
             i += 1
             iteration += 1
         return self.calculate_distance(route),route
 ###2-opt end
+
+###3-opt start
+    def three_opt_swaps(self,route,i,j,k):
+        segm_a = route[1:i+1]
+        segm_b = route[i+1:j+1]
+        segm_c = route[j+1:k+1]
+        segm_d = route[k+1:]
+
+        segm_a_rev = segm_a[::-1]
+        segm_b_rev = segm_b[::-1]
+        segm_c_rev = segm_c[::-1]
+        options = [
+            [route[0]]+segm_a_rev+segm_b+segm_c+segm_d, #first case(reverse segment 1)
+            [route[0]]+segm_a+segm_b_rev+segm_c+segm_d, #second case(reserve segment 2)
+            [route[0]]+segm_a+segm_b+segm_c_rev+segm_d, #third case(reverse segment 3)
+            [route[0]]+segm_b+segm_c+segm_a+segm_d, #fourth case B-C-A
+            [route[0]]+segm_c+segm_b+segm_a+segm_d, #C-B-A
+            [route[0]]+segm_a+segm_c_rev+segm_b_rev+segm_d, #sixth case A-C'-B'
+            [route[0]]+segm_a+segm_b_rev+segm_c_rev+segm_d, #seventh case A-B'-C'
+        ]
+        
+        return options
+    
+    def three_opt(self,path=None,max_iter=10**6):
+        if not path:
+            res = self.nearest_neighbour()
+            route = res[1]
+            dist = res[0]
+        else:
+            dist = path[0]
+            route = path[1]
+        i=0
+        _=0
+        j=i+2
+        improved = True
+        while i<j-1:
+            if _>=max_iter:
+                break
+            if improved:
+                i = 0
+                j = 2
+                k = 4
+                improved = False
+            else:
+                if k == len(route)-2:
+                    if j == len(route) - 4:
+                        i +=1
+                    else:
+                        j += 1
+                else:
+                    k += 1
+            options = self.three_opt_swaps(route,i,j,k)
+            for option in options:
+                new_distance = self.calculate_distance(option)
+                if new_distance<dist:
+                    dist = new_distance
+                    route = option
+                    improved = True
+            _+=1
+        return dist,route
+###3-opt end
 
 ###Simulated annealing starts
     def simulated_annealing(self,path=None,t_max=10000,t_min=0.1,a=0.995,i_max=500):##t_max was set to have acceptance rate > 0.9
@@ -346,7 +411,7 @@ class Graph:
                 
                 try:
                     i = random.randint(0,len(current_route)-5)
-                    j = random.randint(i+2,len(current_route)-2)
+                    j = random.randint(i+2,len(current_route)-3)
                 except:
                     return "Graph is to small"
                 
@@ -367,7 +432,7 @@ class Graph:
 
         return best_distance, best_route
     
-    def choose_the_town(self,ant,a=2,b=5):
+    def choose_the_town(self,ant,i,a=2,b=5):
         current_node = ant.passed[-1]
         towns = list(set(self.nodes.keys())-set(ant.passed))
         t_n = []
@@ -396,20 +461,26 @@ class Graph:
         best_dist = np.inf
         Y = 0
         i = 0
-        while i < 2500:
+        dists = []
+        best_dists = []
+        timee = []
+        while i < 400:
             
             if Y >= batch:
                 break
                 
             for ant in ants:
-                
+                ant.distances.append(ant.dist)
                 ant.routes.append(ant.passed)
                 ant.passed = []
                 ant.dist = 0
                 ant.passed.append(random.choice(keys))
 
-                while len(ant.passed) < len(keys):
-                    town = self.choose_the_town(ant)
+            while len(ants[0].passed) < len(keys):
+                for ant in ants:
+                    t1 = time.time()
+                    town = self.choose_the_town(ant,i)
+                    timee.append(time.time()-t1)
                     edge = self.edges[frozenset([town,ant.passed[-1]])]
                     ant.passed.append(town)
                     ant.dist += edge.weight
@@ -420,9 +491,11 @@ class Graph:
                 if ant.dist < best_dist:
                     best_route = ant.passed
                     best_dist = ant.dist
+                    best_dists.append(best_dist)
                     Y = 0
-                elif ((ant.dist - best_dist)/best_dist) < s:
+                elif ((ant.dist - best_dist)/best_dist) <= s:
                     Y += 1
+                dists.append(ant.dist-best_dist)
             self.update_pheromones()
             i += 1
 
@@ -463,7 +536,7 @@ def confirm_normal_distribution(sample,N,alpha=0.05):
 
     chi2 = sum([((obs_frequency[i]-exp_frequency[i])**2)/exp_frequency[i] for i in range(len(obs_frequency))])
 
-    dof = len(intervals) - 1 - 2
+    dof = len(intervals) - 2
 
     critical_value = stats.chi2.ppf(1 - alpha, dof)
 

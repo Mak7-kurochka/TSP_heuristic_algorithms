@@ -267,14 +267,14 @@ class Graph:
 
         return route
 
-    def random_swaping(self,route_llst=None,batch=1000,k=0.05):
-        if not route_llst:
+    def random_swaping(self,route_list=None,batch=1000,s=0.05):
+        if not route_list:
             route = (list(range(0,len(self.nodes.keys()))))
             random.shuffle(route)
             route.append(route[0])
             route_dist = self.calculate_distance(route)
         else:
-            route_dist, route = route_llst
+            route_dist, route = route_list
 
         i = 0
         Y = 0
@@ -291,7 +291,7 @@ class Graph:
                 route = new_route
                 route_dist = new_route_dist
                 Y = 0
-            elif (new_route_dist - route_dist)/route_dist <= k:
+            elif (new_route_dist - route_dist)/route_dist <= s:
                 Y += 1
 
             i += 1

@@ -1,6 +1,6 @@
 # TSP Heuristic Algorithms
 
-This repository contains the source code and results for my Bachelor's thesis project on heuristic algorithms for solving the Traveling Salesman Problem (TSP). The project evaluates and compares several heuristic approaches for tackling the NP-hard TSP, focusing on algorithmic efficiency and solution quality.
+This repository contains the source code and results on heuristic algorithms for solving the Traveling Salesman Problem (TSP). The project evaluates and compares several heuristic approaches for tackling the NP-hard TSP, focusing on algorithmic efficiency and solution quality.
 
 ## Technologies Used
 

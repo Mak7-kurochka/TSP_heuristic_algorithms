@@ -517,7 +517,20 @@ def confirm_normal_distribution(sample, N, alpha=0.05):
 
     return (chi2,critical_value,chi2<critical_value)
 
-def pilot_experiment(lof,distance_matrix,minimum,step):
+def random_matrix(distance_matrix, k):
+    clients = []
+    if distance_matrix.shape[0] == 736:
+        clients.append(732)
+        k = k - 1
+    for _ in range(k):
+        randint = random.randint(0, distance_matrix.shape[0]-1)
+        while randint in clients:
+            randint = random.randint(0, distance_matrix.shape[0]-1)
+        clients.append(randint)
+        
+    return distance_matrix[np.ix_(clients, clients)]
+
+def pilot_experiment(lof,dist_matrix,minimum,maximum,step):
     file_name = input('Please enter the name of .txt file for distances: ')
     file_name_time = input('Please enter the name of .txt file for times: ')
     file_n_name = input('Please enter the name of .txt file for N: ')
@@ -527,6 +540,7 @@ def pilot_experiment(lof,distance_matrix,minimum,step):
     results = {}
     results_time = {}
     results_n = {}
+    distance_matrix = random_matrix(dist_matrix,maximum)
     for func in lof:
         results_file.write(f'{func}\n')
         results_time_file.write(f'{func}\n')
@@ -543,12 +557,17 @@ def pilot_experiment(lof,distance_matrix,minimum,step):
         
         
         for n in rannge:
-            submatrix = distance_matrix[0:n,0:n]
+        #for n in range(minimum, distance_matrix.shape[0]+1, step):
+            #submatrix = distance_matrix[0:n,0:n]
+
             names = np.arange(0,n)
             sample = []
             sample_times = []
             N = 30
             for _ in range(N):
+                
+                submatrix = random_matrix(distance_matrix, n)
+
                 graph_temp = Graph(submatrix)
                 graph_temp.add_edge(submatrix,names)
                 time_before = time.time()
@@ -604,20 +623,9 @@ def pilot_experiment(lof,distance_matrix,minimum,step):
     plt.legend()
 
     plt.show()
-
-##define the graph
-matrix = np.loadtxt("distance_matrix.csv", delimiter=',')
-#print(matrix)
-graph = Graph(matrix)
-n = len(matrix)
-names = np.arange(0,n)
-graph.add_edge(matrix,names)
-
-#pilot_experiment(['ant_system'],matrix[0:1000,0:1000],1000,100)
-pilot_experiment(['nearest_neighbour','simulated_annealing','ant_system','random_swaping','two_opt'],matrix[0:736,0:736], 80, 80)
-
-def create_plots(file_name, minimum, maximum,step):
-    colors = {'nearest_neighbour':"#72AED8",'simulated_annealing':"#FCB67A",'ant_system':"#6FCA6F",'random_swaping':"#E27F80",'two_opt':"#B48CD6"}
+    
+def create_plots(file_name, minimum, maximum,step, log=False):
+    colors = {'nearest_neighbour':"#72AED8",'simulated_annealing':"#FCB67A",'ant_system':"#6FCA6F",'random_swaping':"#E27F80", 'two_opt':"#B48CD6"}
     result = open(file_name,'r')
     res = dict()
     name = ""
@@ -634,9 +642,10 @@ def create_plots(file_name, minimum, maximum,step):
     plt.figure(figsize=(10, 6), dpi=100)
 
     for func in funcs:
-        print(list(range(minimum,(maximum+1), step)))
+        rannge = list(range(minimum, maximum+1, step))
+        #rannge[-1] = 736
 
-        plt.plot(list(range(minimum,(maximum+1), step)), res[func],
+        plt.plot(rannge, res[func],
                  label=func, color=colors[func], linewidth=2, alpha=0.8)
         
     plt.legend(frameon=True, fontsize=10, loc='upper left')
@@ -645,19 +654,26 @@ def create_plots(file_name, minimum, maximum,step):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     
-    #plt.yscale('log', base=2)
+    if log:
+        plt.yscale('log', base=2)
 
-    plt.xlabel('Number of cities', fontsize=12, labelpad=10, color='#333333')
-    plt.ylabel('Calculated sample size [N]', fontsize=12, labelpad=10, color='#333333')
+    plt.xlabel('Number of clients', fontsize=12, labelpad=10, color='#333333')
+    plt.ylabel('Objective Function [m]', fontsize=12, labelpad=10, color='#333333')
 
     ax.grid(True, which='both',linestyle=':', alpha=0.6)
 
     plt.show()
 
-#create_plots('results_100.txt',10,100,10)
-#create_plots('results_time_100.txt',10,100,10)
-#create_plots('results_1000.txt',100,1000,100)
-#create_plots('results_time_1000.txt',100,1000,100)
-#create_plots('results_500.txt',50,500,50)
-#create_plots('results_time_500.txt',50,500,50) 
-#create_plots('results_n.txt',100,1000,100)
+
+##define the graph
+matrix = np.loadtxt("distance_matrix.csv", delimiter=',')
+#print(matrix)
+graph = Graph(matrix)
+n = len(matrix)
+names = np.arange(0,n)
+graph.add_edge(matrix,names)
+
+#pilot_experiment(['nearest_neighbour','simulated_annealing','ant_system','random_swaping','two_opt'], matrix, 10, 100, 10)
+#pilot_experiment(['nearest_neighbour','simulated_annealing','ant_system','random_swaping','two_opt'], matrix, 30, 300, 30)
+#pilot_experiment(['nearest_neighbour','simulated_annealing','ant_system','random_swaping','two_opt'], matrix, 50, 500, 50)
+#pilot_experiment(['nearest_neighbour','simulated_annealing','ant_system','random_swaping','two_opt'], matrix, 80, 736, 80)
